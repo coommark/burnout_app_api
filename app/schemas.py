@@ -1,5 +1,8 @@
 from pydantic import BaseModel, EmailStr, constr
 from typing import Optional
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import date
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -38,8 +41,13 @@ class DailyAssessmentIn(BaseModel):
     capable_score: int
     meaningful_score: int
 
-class DashboardOut(BaseModel):
+class DailyPredictionOut(BaseModel):
+    date: date
     burnout_risk: bool
     confidence: float
     model_version: str
-    summary: Optional[dict]
+
+
+class DashboardOut(BaseModel):
+    today_prediction: Optional[DailyPredictionOut]
+    recent_predictions: List[DailyPredictionOut]

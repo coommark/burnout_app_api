@@ -13,10 +13,9 @@ xgb = joblib.load(os.path.join(MODEL_DIR, "xgboost_model.pkl"))
 scaler = joblib.load(os.path.join(MODEL_DIR, "burnout_scaler.pkl"))
 label_enc = joblib.load(os.path.join(MODEL_DIR, "burnout_label_encoder.pkl"))
 
-def predict_burnout(avg_tired, avg_capable, avg_meaningful):
+def predict_burnout(avg_tired: float, avg_capable: float, avg_meaningful: float):
     """
-    Predict burnout risk using the XGBoost model.
-    Also uses scaled features where needed.
+    Predict burnout risk using the Logistic Regression model with proper scaling.
 
     Args:
         avg_tired (float): Average tiredness score
@@ -24,25 +23,31 @@ def predict_burnout(avg_tired, avg_capable, avg_meaningful):
         avg_meaningful (float): Average meaningfulness score
 
     Returns:
-        dict: Prediction result including risk, confidence, and model version
+        dict: {
+            "burnout_risk": bool,
+            "confidence": float,
+            "label": str,
+            "model_version": str
+        }
     """
     data = np.array([[avg_tired, avg_capable, avg_meaningful]])
 
-    # Predict using all models (optional if you want to compare)
+    # Scale input
     scaled = scaler.transform(data)
-    predictions = {
-        "lr": lr.predict(scaled)[0],
-        "rf": rf.predict(data)[0],
-        "xgb": xgb.predict(data)[0]
-    }
 
-    # Final prediction from XGBoost
-    encoded = predictions["xgb"]
-    label = label_enc.inverse_transform([encoded])[0]
-    confidence = float(np.max(xgb.predict_proba(data)))
+    # Predict encoded class label
+    encoded_pred = lr.predict(scaled)[0]
+
+    # Decode to actual label (e.g., "Low", "Moderate", "High")
+    label = label_enc.inverse_transform([encoded_pred])[0]
+
+    # Get class probabilities
+    proba = lr.predict_proba(scaled)[0]
+    confidence = float(np.max(proba))
 
     return {
         "burnout_risk": label.lower() == "high",
+        "label": label,
         "confidence": confidence,
-        "model_version": "xgboost"
+        "model_version": "logistic_regression"
     }

@@ -1,21 +1,55 @@
+from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.auth import get_current_user
+from sqlalchemy import func
+from app.models import Prediction
+from app.schemas import DashboardOut, DailyPredictionOut
 from app.dependencies import get_db
-from app.crud import compute_rolling_summary
-from app.schemas import DashboardOut
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
+
 @router.get("/", response_model=DashboardOut)
 def dashboard(current=Depends(get_current_user), db: Session = Depends(get_db)):
-    summary = compute_rolling_summary(db, current)
-    last_pred = current.assessments[-1].prediction if current.assessments else None
-    if not last_pred:
-        return DashboardOut(burnout_risk=False, confidence=0.0, model_version="", summary=None)
+    today = date.today()
+
+    # Today's prediction (if any), based on predicted_at date
+    today_prediction = (
+        db.query(Prediction)
+        .filter(
+            Prediction.assessment.has(user_id=current.id),
+            func.date(Prediction.predicted_at) == today,
+        )
+        .first()
+    )
+
+    # Last 5 predictions before today
+    recent_predictions = (
+        db.query(Prediction)
+        .filter(
+            Prediction.assessment.has(user_id=current.id),
+            func.date(Prediction.predicted_at) < today,
+        )
+        .order_by(Prediction.predicted_at.desc())
+        .limit(5)
+        .all()
+    )
+
     return DashboardOut(
-        burnout_risk=last_pred.burnout_risk,
-        confidence=last_pred.confidence,
-        model_version=last_pred.model_version,
-        summary=summary.features_json if summary else None
+        today_prediction=DailyPredictionOut(
+            date=today_prediction.predicted_at.date(),
+            burnout_risk=today_prediction.burnout_risk,
+            confidence=today_prediction.confidence,
+            model_version=today_prediction.model_version,
+        ) if today_prediction else None,
+        recent_predictions=[
+            DailyPredictionOut(
+                date=pred.predicted_at.date(),
+                burnout_risk=pred.burnout_risk,
+                confidence=pred.confidence,
+                model_version=pred.model_version,
+            )
+            for pred in recent_predictions
+        ],
     )

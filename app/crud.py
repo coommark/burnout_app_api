@@ -3,9 +3,9 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 from app.models import User, Assessment, Prediction, DailySummaryRolling7D, AuditLog
-from app.schemas import DailyAssessmentIn as AssessmentCreate
 from typing import Optional, Tuple
 import uuid
+from app.schemas import DailyAssessmentIn
 
 
 def create_user(db: Session, email: str, password_hash: str, full_name: str) -> User:
@@ -34,28 +34,37 @@ def log_action(db: Session, user_id: str, action: str, details: str = "") -> Non
 
 
 def add_assessment_and_prediction(
-    db: Session, user: User, assessment_data: AssessmentCreate, prediction_result: dict
-) -> Tuple[Assessment, Prediction]:
-    assess = Assessment(
+    db: Session,
+    user: User,
+    data: DailyAssessmentIn,
+    prediction_result: Optional[dict] = None
+):
+    # Save the assessment first
+    assessment = Assessment(
         user_id=user.id,
         date=date.today(),
-        tired_score=assessment_data.tired_score,
-        capable_score=assessment_data.capable_score,
-        meaningful_score=assessment_data.meaningful_score,
+        tired_score=data.tired_score,
+        capable_score=data.capable_score,
+        meaningful_score=data.meaningful_score,
     )
-    db.add(assess)
+    db.add(assessment)
     db.commit()
-    db.refresh(assess)
+    db.refresh(assessment)
 
-    pred = Prediction(
-        assessment_id=assess.id,
-        burnout_risk=prediction_result["burnout_risk"],
-        confidence=prediction_result["confidence"],
-        model_version=prediction_result["model_version"],
-    )
-    db.add(pred)
-    db.commit()
-    return assess, pred
+    # Save prediction if available
+    prediction = None
+    if prediction_result:
+        prediction = Prediction(
+            assessment_id=assessment.id,
+            burnout_risk=prediction_result["burnout_risk"],
+            confidence=prediction_result["confidence"],
+            model_version=prediction_result.get("model_version", "1.0.0")  # fallback if not provided
+        )
+        db.add(prediction)
+        db.commit()
+        db.refresh(prediction)
+
+    return assessment, prediction
 
 
 def compute_rolling_summary(db: Session, user: User) -> Optional[DailySummaryRolling7D]:
@@ -67,7 +76,8 @@ def compute_rolling_summary(db: Session, user: User) -> Optional[DailySummaryRol
         Assessment.date >= week_ago
     ).all()
 
-    if not rows:
+    # Only compute if we have at least 7 assessments
+    if len(rows) < 7:
         return None
 
     arr = np.array([[r.tired_score, r.capable_score, r.meaningful_score] for r in rows])
@@ -85,6 +95,7 @@ def compute_rolling_summary(db: Session, user: User) -> Optional[DailySummaryRol
             "avg_meaningful": avg[2]
         }
     )
+
     db.add(summary)
     db.commit()
     db.refresh(summary)
