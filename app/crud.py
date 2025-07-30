@@ -57,14 +57,16 @@ def add_assessment_and_prediction(
         prediction = Prediction(
             assessment_id=assessment.id,
             burnout_risk=prediction_result["burnout_risk"],
+            label=prediction_result["label"],
             confidence=prediction_result["confidence"],
-            model_version=prediction_result.get("model_version", "1.0.0")  # fallback if not provided
+            model_version=prediction_result.get("model_version", "1.0.0")
         )
         db.add(prediction)
         db.commit()
         db.refresh(prediction)
 
     return assessment, prediction
+
 
 
 def compute_rolling_summary(db: Session, user: User) -> Optional[DailySummaryRolling7D]:

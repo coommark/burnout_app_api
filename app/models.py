@@ -34,10 +34,12 @@ class Prediction(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     assessment_id = Column(String, ForeignKey("assessments.id"), nullable=False)
     burnout_risk = Column(Boolean)
+    label = Column(String)  # <--- New column
     confidence = Column(Float)
     model_version = Column(String)
     predicted_at = Column(DateTime(timezone=True), server_default=func.now())
     assessment = relationship("Assessment", back_populates="prediction")
+
 
 class DailySummaryRolling7D(Base):
     __tablename__ = "daily_summary_rolling_7d"

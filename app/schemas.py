@@ -46,6 +46,7 @@ class DailyPredictionOut(BaseModel):
     burnout_risk: bool
     confidence: float
     model_version: str
+    label: str
 
 
 class DashboardOut(BaseModel):

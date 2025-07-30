@@ -42,6 +42,7 @@ def dashboard(current=Depends(get_current_user), db: Session = Depends(get_db)):
             burnout_risk=today_prediction.burnout_risk,
             confidence=today_prediction.confidence,
             model_version=today_prediction.model_version,
+            label=today_prediction.label,
         ) if today_prediction else None,
         recent_predictions=[
             DailyPredictionOut(
@@ -49,6 +50,7 @@ def dashboard(current=Depends(get_current_user), db: Session = Depends(get_db)):
                 burnout_risk=pred.burnout_risk,
                 confidence=pred.confidence,
                 model_version=pred.model_version,
+                label=pred.label,
             )
             for pred in recent_predictions
         ],
