@@ -37,7 +37,17 @@ def test_prediction_integration_valid(auth_headers, client):
         "tired_score": 4, "capable_score": 1, "meaningful_score": 2
     }, headers=auth_headers)
     assert response.status_code == 200
-    assert response.json()["burnout_risk"] in [True, False]
+
+    result = response.json()
+    if "label" in result:
+        assert result["burnout_risk"] in [True, False]
+        assert result["confidence"] is not None
+        assert 0 <= result["confidence"] <= 1
+        assert result["label"] in ["Low", "Moderate", "High"]
+    else:
+        assert result["burnout_risk"] is None
+        assert result["confidence"] is None
+        assert result["message"] == "Assessment saved. Burnout prediction will be available after 7 entries."
 
 def test_prediction_integration_malformed(auth_headers, client):
     response = client.post("/assessments/", json={
