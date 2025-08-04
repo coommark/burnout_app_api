@@ -193,9 +193,3 @@ Target SLA (local): **p95 ≤ 2 s** for `/assessments/` & `/dashboard/`.
 | **Prediction** | ML output _Low \| Moderate \| High_  |
 | **Rolling 7d** | 7‑day average used as model features |
 | **p95**        | 95th‑percentile response time        |
-
----
-
-## Contact
-
-Open an issue or email **mark.y.melton [at] uop.edu** for questions or collaboration ideas.
