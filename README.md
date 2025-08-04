@@ -1,4 +1,4 @@
-# Early Detection of Burnout Risk – **Backend API**
+# Early Detection of Burnout Risk among IT Professionals Using Lightweight Daily Self-Assessments: A Machine Learning Approach – **Backend API**
 
 **Capstone Project – MSIT 5910**  
 **Institution:** University of the People  
