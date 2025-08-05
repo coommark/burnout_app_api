@@ -10,8 +10,7 @@
 
 ## 📍 Project at a Glance
 
-Early Detection of **Burnout Risk among IT Professionals** is the MSIT 5910 capstone project for the University of the People.  
-It delivers a _complete, production-style pipeline_—from daily data capture on a phone to real-time ML inference and dashboards—to surface early warning signs of burnout.
+This capstone project delivers a _complete, production-style pipeline_—from daily data capture on a phone to real-time ML inference and dashboards—to surface early warning signs of burnout.
 
 ---
 
@@ -22,7 +21,6 @@ It delivers a _complete, production-style pipeline_—from daily data capture on
 3. ML Inference
 4. Persistence & Analytics
 5. Instant Feedback (Mobile)
-6. Offline Retraining Loop
 
 ---
 
@@ -31,9 +29,9 @@ It delivers a _complete, production-style pipeline_—from daily data capture on
 | Item           | Details                                                          |
 | -------------- | ---------------------------------------------------------------- |
 | Features       | 7-day means of EE, PA, DP (DP = 6 − _meaningfulness_)            |
-| Algorithms     | Logistic Regression, Random Forest, **XGBoost**                  |
+| Algorithms     | Logistic Regression, Random Forest, XGBoost                      |
 | Target         | `Low` / `Moderate` / `High` burnout risk + binary _at-risk_ flag |
-| Data (Phase 1) | 1 000 simulated users, class-balanced, MBI-aligned               |
+| Data (Phase 1) | 1,000 simulated users, class-balanced, MBI-aligned               |
 | Eval split     | Stratified 70 / 30 hold-out                                      |
 | Key metrics    | Per-class P/R/F1, macro ROC-AUC, Brier, log-loss                 |
 | Ops target     | **≤ 2 s** p95 API latency (Locust: 61 ms)                        |
@@ -49,10 +47,9 @@ It delivers a _complete, production-style pipeline_—from daily data capture on
 
 ### 🔧 Backend (FastAPI / Python 3.10)
 
-- Modular **routers**: `/users`, `/assessments`, `/dashboard`, `/push-token`.
-- **Argon2id** password hashing, Pydantic validation, rate-limit & CORS middleware.
-- Model inference endpoint hot-loads `.pkl` artefacts; zero-downtime swaps via CI pipeline.
-- Structured JSON logging + Prometheus `/metrics` for ops.
+- Modular **routers**: `/users`, `/assessments`, `/dashboard`.
+- **Argon2id** password hashing, Pydantic validation & CORS middleware.
+- Model inference endpoint hot-loads `.pkl` artefacts.
 
 ---
 
@@ -64,7 +61,6 @@ It delivers a _complete, production-style pipeline_—from daily data capture on
 | **RQ2**            | _Model choice_: Which algorithm balances **recall**, **calibration**, and **interpretability** best?        |
 | **RQ3**            | _Systems_: Can the prototype deliver **< 1 min** UX + **< 2 s** API inference under ≥ 100 concurrent users? |
 | **Primary Goal**   | Prove technical feasibility of low-burden, continuous burnout monitoring on modest infra.                   |
-| **Secondary Goal** | Prepare codebase & pipelines for Phase 2: consent-based real-world validation.                              |
 
 ---
 
@@ -79,20 +75,19 @@ It delivers a _complete, production-style pipeline_—from daily data capture on
 This repository hosts the **FastAPI** backend that powers the capstone’s Early Detection of Burnout mobile app.  
 It provides secure REST endpoints for authentication, daily self‑assessment submission, rolling 7‑day analytics, and real‑time machine‑learning risk prediction.
 
-The mobile client lives in a separate repo (see **Mobile‑App** README).
+The mobile client lives in a separate repo here: [https://github.com/coommark/burnout_app_mobile](https://github.com/coommark/burnout_app_mobile).
 
 ---
 
 ## Features
 
-| Category             | Description                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Auth**             | User registration, login, refresh, and password reset via **JWT** (access + refresh).                         |
-| **Daily Assessment** | POST three slider scores (0‑6) — exhaustion, capability, meaningfulness — once per calendar day.              |
-| **ML Prediction**    | Submission triggers the latest **XGBoost** pipeline returning _Low / Moderate / High_ risk and probabilities. |
-| **Dashboard**        | GET endpoint with 7‑day aggregates & historical predictions for charting.                                     |
-| **Push Tokens**      | Register Expo push tokens for daily reminders.                                                                |
-| **Audit Logging**    | All critical actions stored in `audit_logs` for traceability.                                                 |
+| Category             | Description                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Auth**             | User registration, login, refresh, and password reset via **JWT** (access + refresh).                               |
+| **Daily Assessment** | POST three slider scores (0‑6) — exhaustion, capability, meaningfulness — once per calendar day.                    |
+| **ML Prediction**    | Submission triggers the latest **Random Forest** pipeline returning _Low / Moderate / High_ risk and probabilities. |
+| **Dashboard**        | GET endpoint with 7‑day aggregates & historical predictions for charting.                                           |
+| **Audit Logging**    | All critical actions stored in `audit_logs` for traceability.                                                       |
 
 ---
 
@@ -127,11 +122,11 @@ backend/
 
 ---
 
-## Setup & Installation
+## Setup & Installation (API)
 
 1. **Clone & install**
    ```bash
-   git clone <repo-url> && cd backend
+   git clone https://github.com/coommark/burnout_app_api.git && cd backend
    python -m venv .venv && source .venv/bin/activate
    pip install -r requirements.txt
    ```
@@ -141,11 +136,15 @@ backend/
    SECRET_KEY=change_me
    ACCESS_TOKEN_EXPIRE_MINUTES=30
    ```
-3. **Migrations**
+3. **Reset database**
+   ```bash
+   PYTHONPATH=. python scripts/reset_db.py # Run from the root of the project
+   ```
+4. **Migrations**
    ```bash
    alembic upgrade head
    ```
-4. **Run API**
+5. **Run API**
    ```bash
    uvicorn app.main:app --reload
    # Swagger UI → http://localhost:8000/docs
@@ -153,11 +152,20 @@ backend/
 
 ---
 
+## Re-generate Simulation Dataset and Re-train Models
+
+1. Open `model/simulation_datase.ipynb` in Jupyter Notebook and run first cell. Generated dataset will be saved in `model/data` directory
+2. Open `model/train.ipynb` in Jupyter Notebook and run first cell. All trained models and plots will be saved in `model/output` directory
+
+---
+
 ## Testing
 
 ```bash
-pytest -q               # unit / integration
-locust -f locustfile.py # http://localhost:8089
+pytest -m "not integration"   # Unit tests only
+pytest -m integration         # Integration tests only
+locust -f locustfile.py --headless -u 100 -r 20 -t 5m --host http://localhost:8000 # To simulate target SLA tests OR
+locust -f locustfile.py # To run in browser and specify your parameters manually
 ```
 
 Target SLA (local): **p95 ≤ 2 s** for `/assessments/` & `/dashboard/`.
@@ -169,19 +177,17 @@ Target SLA (local): **p95 ≤ 2 s** for `/assessments/` & `/dashboard/`.
 - **TLS 1.3** (terminated by reverse proxy)
 - **Argon2id** password hashing
 - **JWT** with short‑lived access / long‑lived refresh tokens
-- Strict **CORS** & **Rate‑Limiting** middleware
+- Strict **CORS** middleware
 - Server‑side validation with Pydantic
 
 ---
 
 ## Deployment & Maintenance
 
-| Stage         | Tool / Notes                                      |
-| ------------- | ------------------------------------------------- |
-| CI            | GitHub Actions – lint → test → build → push image |
-| CD            | Docker/K8s/Fly/Render (choose hosting)            |
-| Observability | JSON logs + Prometheus metrics (`/metrics`)       |
-| Upgrades      | Dependabot PRs, alembic migrations                |
+| Stage    | Tool / Notes                                      |
+| -------- | ------------------------------------------------- |
+| CI       | GitHub Actions – lint → test → build → push image |
+| Upgrades | Dependabot PRs, alembic migrations                |
 
 ---
 
